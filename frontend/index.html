@@ -1,770 +1,686 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EEG-SINDy File Upload | Supabase Integration</title>
+    <title>SINDy Seizure Prediction</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <style>
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --secondary: #ec4899;
+            --accent: #8b5cf6;
+            --background: #0f172a;
+            --surface: rgba(30, 41, 59, 0.7);
+            --surface-light: rgba(51, 65, 85, 0.5);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --glass-border: 1px solid rgba(255, 255, 255, 0.1);
+            --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            font-family: 'Outfit', sans-serif;
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            background: #f5f5f5;
+            background-color: var(--background);
+            background-image:
+                radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
+                radial-gradient(at 100% 0%, rgba(236, 72, 153, 0.15) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(139, 92, 246, 0.15) 0px, transparent 50%);
+            background-attachment: fixed;
+            color: var(--text-main);
+            min-height: 100vh;
+            overflow-x: hidden;
         }
 
-        .navbar {
-            position: fixed;
-            top: 0;
-            width: 100%;
-            background: rgba(255, 255, 255, 0.95);
+        /* Glassmorphism Utilities */
+        .glass {
+            background: var(--surface);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: var(--glass-border);
+            border-radius: 16px;
+            box-shadow: var(--glass-shadow);
+        }
+
+        .glass-card {
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 100%);
             backdrop-filter: blur(10px);
-            padding: 1rem 2rem;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            z-index: 1000;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 1.5rem;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .glass-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.5);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Layout */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        header {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            padding: 1.5rem 0;
+            margin-bottom: 3rem;
         }
 
         .logo {
-            font-size: 1.5rem;
-            font-weight: bold;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-size: 1.75rem;
+            font-weight: 700;
+            background: linear-gradient(to right, #818cf8, #e879f9);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            background-clip: text;
+            letter-spacing: -0.5px;
         }
 
-        .nav-links {
-            display: flex;
-            gap: 2rem;
-            list-style: none;
-        }
-
-        .nav-links a {
-            text-decoration: none;
-            color: #333;
-            font-weight: 500;
-            transition: color 0.3s;
-            cursor: pointer;
-        }
-
-        .nav-links a:hover {
-            color: #667eea;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 100px auto 50px;
-            padding: 2rem;
-        }
-
-        .tab-container {
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
-            overflow: hidden;
-        }
-
-        .tabs {
-            display: flex;
-            background: #f8f9fa;
-            border-bottom: 2px solid #e0e0e0;
-        }
-
-        .tab {
-            flex: 1;
-            padding: 1.5rem;
+        /* Hero Section */
+        .hero {
             text-align: center;
-            cursor: pointer;
-            transition: all 0.3s;
-            font-weight: 500;
-            border: none;
-            background: transparent;
-            font-size: 1rem;
+            margin-bottom: 4rem;
+            animation: fadeIn 0.8s ease-out;
         }
 
-        .tab:hover {
-            background: rgba(102, 126, 234, 0.1);
-        }
-
-        .tab.active {
-            background: white;
-            color: #667eea;
-            border-bottom: 3px solid #667eea;
-        }
-
-        .tab-content {
-            display: none;
-            padding: 2rem;
-            animation: fadeIn 0.3s;
-        }
-
-        .tab-content.active {
-            display: block;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .upload-area {
-            border: 3px dashed #667eea;
-            border-radius: 15px;
-            padding: 3rem;
-            text-align: center;
-            background: #f8f9fa;
-            transition: all 0.3s;
-            cursor: pointer;
-        }
-
-        .upload-area:hover {
-            background: #e8ecff;
-            border-color: #764ba2;
-        }
-
-        .upload-area.dragover {
-            background: #d4e3ff;
-            border-color: #667eea;
-            transform: scale(1.02);
-        }
-
-        .upload-icon {
-            font-size: 4rem;
-            margin-bottom: 1rem;
-        }
-
-        .form-group {
+        .hero h1 {
+            font-size: 3.5rem;
+            line-height: 1.1;
             margin-bottom: 1.5rem;
+            background: linear-gradient(to bottom right, #fff, #cbd5e1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
 
-        .form-group label {
-            display: block;
-            margin-bottom: 0.5rem;
-            font-weight: 500;
-            color: #555;
+        .hero p {
+            font-size: 1.25rem;
+            color: var(--text-muted);
+            max-width: 600px;
+            margin: 0 auto 2.5rem;
         }
 
-        .form-group input {
-            width: 100%;
-            padding: 0.75rem;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            font-size: 1rem;
-            transition: border-color 0.3s;
-        }
-
-        .form-group input:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
+        /* Buttons */
         .btn {
-            padding: 0.75rem 2rem;
-            border: none;
-            border-radius: 8px;
-            font-size: 1rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.875rem 2rem;
+            border-radius: 12px;
             font-weight: 600;
+            font-size: 1rem;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: none;
+            outline: none;
         }
 
         .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
             color: white;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
         }
 
         .btn-primary:hover {
             transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 8px 25px rgba(99, 102, 241, 0.4);
         }
 
-        .btn-danger {
-            background: #e74c3c;
-            color: white;
-            padding: 0.5rem 1rem;
-            font-size: 0.9rem;
-        }
-
-        .btn-danger:hover {
-            background: #c0392b;
-        }
-
-        .btn:disabled {
-            opacity: 0.5;
+        .btn-primary:disabled {
+            opacity: 0.6;
             cursor: not-allowed;
+            transform: none;
         }
 
-        .alert {
-            padding: 1rem;
-            border-radius: 8px;
-            margin-bottom: 1rem;
-            display: none;
+        .btn-outline {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: var(--text-main);
         }
 
-        .alert.show {
-            display: block;
-            animation: slideIn 0.3s;
+        .btn-outline:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.4);
         }
 
-        @keyframes slideIn {
-            from { transform: translateX(-100%); }
-            to { transform: translateX(0); }
-        }
-
-        .alert-success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-
-        .alert-error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-
-        .alert-info {
-            background: #d1ecf1;
-            color: #0c5460;
-            border: 1px solid #bee5eb;
-        }
-
-        .file-card {
-            background: white;
-            border: 1px solid #e0e0e0;
-            border-radius: 10px;
-            padding: 1.5rem;
-            margin-bottom: 1rem;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-            transition: all 0.3s;
-        }
-
-        .file-card:hover {
-            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
-            transform: translateY(-2px);
-        }
-
-        .file-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1rem;
-        }
-
-        .file-title {
-            font-size: 1.2rem;
-            font-weight: 600;
-            color: #333;
-        }
-
-        .file-meta {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 1rem;
-            margin-top: 1rem;
-        }
-
-        .meta-item {
-            text-align: center;
-            padding: 0.75rem;
-            background: #f8f9fa;
-            border-radius: 8px;
-        }
-
-        .meta-label {
-            font-size: 0.85rem;
-            color: #666;
-            margin-bottom: 0.25rem;
-        }
-
-        .meta-value {
-            font-size: 1.1rem;
-            font-weight: 600;
-            color: #667eea;
-        }
-
-        .loading {
-            display: none;
-            text-align: center;
-            padding: 2rem;
-        }
-
-        .loading.show {
-            display: block;
-        }
-
-        .spinner {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #667eea;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
+        /* Upload Area */
+        .upload-container {
+            max-width: 800px;
             margin: 0 auto;
         }
 
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+        .drop-zone {
+            position: relative;
+            border: 2px dashed rgba(255, 255, 255, 0.15);
+            border-radius: 20px;
+            padding: 4rem 2rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            background: rgba(255, 255, 255, 0.02);
+            overflow: hidden;
         }
 
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        .drop-zone:hover,
+        .drop-zone.dragover {
+            border-color: var(--primary);
+            background: rgba(99, 102, 241, 0.05);
+        }
+
+        .drop-zone input {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .icon-cloud {
+            font-size: 4rem;
+            margin-bottom: 1.5rem;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Status & Processing */
+        .status-container {
+            margin-top: 2rem;
+            display: none;
+            /* hidden by default */
+        }
+
+        .progress-steps {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2rem;
+            position: relative;
+        }
+
+        .progress-steps::before {
+            content: '';
+            position: absolute;
+            top: 15px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: rgba(255, 255, 255, 0.1);
+            z-index: 0;
+        }
+
+        .step {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            width: 33%;
+            opacity: 0.4;
+            transition: opacity 0.3s;
+        }
+
+        .step.active {
+            opacity: 1;
+        }
+
+        .step-circle {
+            width: 32px;
+            height: 32px;
+            background: var(--background);
+            border: 2px solid var(--text-muted);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.875rem;
+            font-weight: 700;
+            transition: all 0.3s;
+        }
+
+        .step.active .step-circle {
+            border-color: var(--primary);
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 0 15px var(--primary);
+        }
+
+        /* Results Section */
+        .results-dashboard {
+            display: none;
+            /* hidden by default */
+            grid-template-columns: 2fr 1fr;
             gap: 1.5rem;
             margin-top: 2rem;
+            animation: slideUp 0.6s ease-out;
         }
 
-        .stat-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 2rem;
-            border-radius: 10px;
+        .main-chart-card {
+            grid-column: 1 / -1;
+            min-height: 400px;
+        }
+
+        .metric-card {
             text-align: center;
+            padding: 2rem;
         }
 
-        .stat-number {
-            font-size: 2.5rem;
-            font-weight: bold;
+        .metric-value {
+            font-size: 3rem;
+            font-weight: 700;
+            margin: 1rem 0;
+            line-height: 1;
+        }
+
+        .metric-label {
+            color: var(--text-muted);
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .risk-badge {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 0.875rem;
             margin-bottom: 0.5rem;
         }
 
-        .stat-label {
-            font-size: 1rem;
-            opacity: 0.9;
+        .risk-high {
+            background: rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+            border: 1px solid rgba(239, 68, 68, 0.3);
         }
 
-        .filter-bar {
-            display: flex;
-            gap: 1rem;
-            margin-bottom: 2rem;
+        .risk-low {
+            background: rgba(16, 185, 129, 0.2);
+            color: #6ee7b7;
+            border: 1px solid rgba(16, 185, 129, 0.3);
         }
 
-        .filter-bar input {
-            flex: 1;
-            padding: 0.75rem;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            font-size: 1rem;
+        /* Animations */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
         }
 
-        #fileInput {
-            display: none;
-        }
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
 
-        .empty-state {
-            text-align: center;
-            padding: 3rem;
-            color: #999;
-        }
-
-        .empty-state-icon {
-            font-size: 4rem;
-            margin-bottom: 1rem;
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         @media (max-width: 768px) {
-            .container {
-                padding: 1rem;
-                margin-top: 80px;
-            }
-
-            .tabs {
-                flex-direction: column;
-            }
-
-            .file-meta {
+            .results-dashboard {
                 grid-template-columns: 1fr;
+            }
+
+            .hero h1 {
+                font-size: 2.5rem;
             }
         }
     </style>
 </head>
+
 <body>
-    <nav class="navbar">
-        <div class="logo">🧠 EEG-SINDy</div>
-        <ul class="nav-links">
-            <li><a onclick="showTab('upload')">📤 Upload</a></li>
-            <li><a onclick="showTab('files')">📂 Files</a></li>
-            <li><a onclick="showTab('info')">ℹ️ Info</a></li>
-        </ul>
-    </nav>
-
     <div class="container">
-        <div class="tab-container">
-            <div class="tabs">
-                <button class="tab active" onclick="showTab('upload')">📤 Upload EDF</button>
-                <button class="tab" onclick="showTab('files')">📂 My Files</button>
-                <button class="tab" onclick="showTab('info')">ℹ️ Information</button>
+        <header>
+            <div class="logo">🧠 SINDy AI</div>
+            <button class="btn btn-outline" id="demoBtn" onclick="runDemo()">Try Demo</button>
+        </header>
+
+        <!-- Step 1: Upload Hero -->
+        <main class="hero" id="uploadSection">
+            <h1>Predict Seizures with<br>Math & AI</h1>
+            <p>Upload your EEG Data (.edf) to detect early warning signs using Sparse Identification of Nonlinear
+                Dynamics.</p>
+
+            <div class="upload-container">
+                <div class="drop-zone glass" id="dropZone">
+                    <input type="file" id="fileInput" accept=".edf" onchange="handleFileSelect(event)">
+                    <div class="icon-cloud">☁️</div>
+                    <h3 style="margin-bottom: 0.5rem;">Click or Drag & Drop EEG File</h3>
+                    <p style="color: var(--text-muted); font-size: 0.9rem;">Supports .EDF format (CHB-MIT Standard)</p>
+                </div>
             </div>
+        </main>
 
-            <!-- Upload Tab -->
-            <div id="upload" class="tab-content active">
-                <h2 style="margin-bottom: 2rem; color: #667eea;">Upload EDF File</h2>
-                
-                <div id="uploadAlert" class="alert"></div>
-
-                <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
-                    <div class="upload-icon">📁</div>
-                    <h3>Drag & Drop EDF File Here</h3>
-                    <p style="margin-top: 0.5rem; color: #666;">or click to browse</p>
-                    <p id="fileName" style="margin-top: 1rem; font-weight: 600; color: #667eea;"></p>
+        <!-- Loading / Progress State -->
+        <div class="status-container" id="statusSection">
+            <div class="progress-steps">
+                <div class="step active" id="step1">
+                    <div class="step-circle">1</div>
+                    <span>Preprocessing</span>
                 </div>
-                <input type="file" id="fileInput" accept=".edf" onchange="handleFileSelect(event)">
-
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 2rem;">
-                    <div class="form-group">
-                        <label>Patient ID</label>
-                        <input type="text" id="patientId" placeholder="e.g., chb01">
-                    </div>
-                    <div class="form-group">
-                        <label>Session Name</label>
-                        <input type="text" id="sessionName" placeholder="e.g., baseline_recording">
-                    </div>
+                <div class="step" id="step2">
+                    <div class="step-circle">2</div>
+                    <span>Training SINDy</span>
                 </div>
-
-                <button class="btn btn-primary" id="uploadBtn" onclick="uploadFile()" style="width: 100%; margin-top: 1rem;" disabled>
-                    🚀 Upload File
-                </button>
-
-                <div class="loading" id="uploadLoading">
-                    <div class="spinner"></div>
-                    <p style="margin-top: 1rem;">Uploading and validating...</p>
+                <div class="step" id="step3">
+                    <div class="step-circle">3</div>
+                    <span>Predicting</span>
                 </div>
             </div>
 
-            <!-- Files Tab -->
-            <div id="files" class="tab-content">
-                <h2 style="margin-bottom: 2rem; color: #667eea;">Uploaded Files</h2>
+            <div class="glass-card" style="text-align: center; padding: 3rem;">
+                <div id="loader" style="font-size: 2rem; margin-bottom: 1rem;">🔄</div>
+                <h3 id="statusText">Uploading and filtering signal...</h3>
+                <p id="statusDetail" style="color: var(--text-muted); margin-top: 0.5rem;">Applying bandpass filter
+                    (0.5-40Hz)</p>
+            </div>
+        </div>
 
-                <div class="filter-bar">
-                    <input type="text" id="filterInput" placeholder="🔍 Filter by Patient ID..." oninput="filterFiles()">
-                    <button class="btn btn-primary" onclick="loadFiles()">🔄 Refresh</button>
+        <!-- Results Dashboard -->
+        <div class="results-dashboard" id="resultsSection">
+            <!-- Main Prediction Alert -->
+            <div class="glass-card metric-card"
+                style="grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-around; flex-wrap: wrap; text-align: left;">
+                <div>
+                    <div class="risk-badge risk-high" id="riskBadge">HIGH RISK DETECTED</div>
+                    <h2 style="font-size: 2rem;">Seizure Prediction</h2>
+                    <p style="color: var(--text-muted); max-width: 400px;">
+                        The model detected dynamic instability in the signal patterns.
+                    </p>
                 </div>
-
-                <div class="loading" id="filesLoading">
-                    <div class="spinner"></div>
-                    <p style="margin-top: 1rem;">Loading files...</p>
-                </div>
-
-                <div id="filesList"></div>
-
-                <div class="stats-grid" id="statsGrid" style="display: none;">
-                    <div class="stat-card">
-                        <div class="stat-number" id="totalFiles">0</div>
-                        <div class="stat-label">Total Files</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-number" id="totalDuration">0h</div>
-                        <div class="stat-label">Total Duration</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-number" id="totalSize">0MB</div>
-                        <div class="stat-label">Total Size</div>
-                    </div>
+                <div style="text-align: center;">
+                    <div class="metric-label">Estimated Time to Seizure</div>
+                    <div class="metric-value" style="color: var(--danger);" id="timeToSeizure">-- min</div>
                 </div>
             </div>
 
-            <!-- Info Tab -->
-            <div id="info" class="tab-content">
-                <h2 style="margin-bottom: 2rem; color: #667eea;">About EDF Files</h2>
-                
-                <div style="line-height: 1.8;">
-                    <h3 style="color: #667eea; margin-top: 2rem;">European Data Format (EDF)</h3>
-                    <p>EDF is a standard file format for storing multi-channel biological and physical signals.</p>
+            <!-- Instability Graph -->
+            <div class="glass-card main-chart-card">
+                <h3 style="margin-bottom: 1.5rem;">Dynamic Instability Score</h3>
+                <canvas id="instabilityChart"></canvas>
+            </div>
 
-                    <h3 style="color: #667eea; margin-top: 2rem;">✅ Supported by EEG-SINDy</h3>
-                    <ul style="margin-left: 2rem; margin-top: 1rem;">
-                        <li>Standard EDF format</li>
-                        <li>Multi-channel recordings</li>
-                        <li>CHB-MIT database format</li>
-                        <li>Clinical-grade EEG data</li>
-                    </ul>
+            <!-- Simulation Graph or smaller metrics -->
+            <div class="glass-card" style="grid-column: span 1;">
+                <h3 style="margin-bottom: 1rem;">Model Details</h3>
+                <ul style="list-style: none; color: var(--text-muted); line-height: 2;">
+                    <li><strong>Model:</strong> Polynomial SINDy (deg=3)</li>
+                    <li><strong>Algorithm:</strong> STLSQ (thresh=0.006)</li>
+                    <li><strong>Window Size:</strong> 10 seconds</li>
+                    <li><strong>Channels:</strong> <span id="channelCount">--</span></li>
+                </ul>
+            </div>
 
-                    <h3 style="color: #667eea; margin-top: 2rem;">📋 File Requirements</h3>
-                    <ul style="margin-left: 2rem; margin-top: 1rem;">
-                        <li>Valid EDF header</li>
-                        <li>Continuous recording</li>
-                        <li>Minimum 1 channel</li>
-                        <li>Recommended: 16-23 channels (scalp EEG)</li>
-                    </ul>
+            <div class="glass-card" style="grid-column: span 1;">
+                <h3 style="margin-bottom: 1rem;">File Stats</h3>
+                <div class="metric-value" style="font-size: 2rem;" id="durationStat">--</div>
+                <div class="metric-label">Recording Duration</div>
+            </div>
 
-                    <h3 style="color: #667eea; margin-top: 2rem;">🔄 Processing Pipeline</h3>
-                    <ol style="margin-left: 2rem; margin-top: 1rem;">
-                        <li><strong>Upload</strong> - File validation and metadata extraction</li>
-                        <li><strong>Storage</strong> - Secure cloud storage via Supabase</li>
-                        <li><strong>Processing</strong> - Signal preprocessing and filtering</li>
-                        <li><strong>Analysis</strong> - SINDy equation discovery</li>
-                        <li><strong>Prediction</strong> - Seizure risk assessment</li>
-                    </ol>
+            <div class="glass-card" style="grid-column: 1 / -1;">
+                <h3 style="margin-bottom: 1rem;">Live Signal Preview (First 5s)</h3>
+                <canvas id="signalChart" height="80"></canvas>
+            </div>
 
-                    <h3 style="color: #667eea; margin-top: 2rem;">🔗 API Configuration</h3>
-                    <p>Current API Endpoint: <code id="apiUrlDisplay" style="background: #f8f9fa; padding: 0.25rem 0.5rem; border-radius: 4px;">http://localhost:8000</code></p>
-                    <div class="form-group" style="margin-top: 1rem;">
-                        <label>Change API URL (if needed):</label>
-                        <input type="text" id="apiUrlInput" placeholder="http://localhost:8000" value="http://localhost:8000">
-                        <button class="btn btn-primary" onclick="updateApiUrl()" style="margin-top: 0.5rem;">Update URL</button>
-                    </div>
-                </div>
+            <div style="grid-column: 1/-1; text-align: center; margin-top: 2rem;">
+                <button class="btn btn-primary" onclick="window.location.reload()">Analyze Another File</button>
             </div>
         </div>
     </div>
 
     <script>
-        // API Configuration
-        let API_URL = 'http://localhost:8000';
-        let selectedFile = null;
-        let allFiles = [];
+        const API_URL = 'http://localhost:8000';
 
-        // Tab switching
-        function showTab(tabName) {
-            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-            
-            event.target.closest('.tab').classList.add('active');
-            document.getElementById(tabName).classList.add('active');
+        // Element Refs
+        const uploadSection = document.getElementById('uploadSection');
+        const statusSection = document.getElementById('statusSection');
+        const resultsSection = document.getElementById('resultsSection');
+        const statusText = document.getElementById('statusText');
+        const statusDetail = document.getElementById('statusDetail');
 
-            if (tabName === 'files') {
-                loadFiles();
-            }
-        }
+        // Charts
+        let instabilityChart = null;
+        let signalChart = null;
 
-        // Update API URL
-        function updateApiUrl() {
-            API_URL = document.getElementById('apiUrlInput').value;
-            document.getElementById('apiUrlDisplay').textContent = API_URL;
-            showAlert('info', 'API URL updated to: ' + API_URL, 'uploadAlert');
-        }
-
-        // Drag and drop handlers
-        const uploadArea = document.getElementById('uploadArea');
-
-        uploadArea.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            uploadArea.classList.add('dragover');
-        });
-
-        uploadArea.addEventListener('dragleave', () => {
-            uploadArea.classList.remove('dragover');
-        });
-
-        uploadArea.addEventListener('drop', (e) => {
-            e.preventDefault();
-            uploadArea.classList.remove('dragover');
-            
-            const files = e.dataTransfer.files;
-            if (files.length > 0 && files[0].name.endsWith('.edf')) {
-                selectedFile = files[0];
-                document.getElementById('fileName').textContent = '📄 ' + files[0].name;
-                document.getElementById('uploadBtn').disabled = false;
-            } else {
-                showAlert('error', 'Please select a valid .edf file', 'uploadAlert');
-            }
-        });
-
-        // File selection
-        function handleFileSelect(event) {
+        async function handleFileSelect(event) {
             const file = event.target.files[0];
             if (file && file.name.endsWith('.edf')) {
-                selectedFile = file;
-                document.getElementById('fileName').textContent = '📄 ' + file.name;
-                document.getElementById('uploadBtn').disabled = false;
+                startAnalysis(file);
             } else {
-                showAlert('error', 'Please select a valid .edf file', 'uploadAlert');
+                alert('Please upload a valid .edf file');
             }
         }
 
-        // Upload file
-        async function uploadFile() {
-            if (!selectedFile) return;
+        async function runDemo() {
+            // Demo mode: Bypass file upload, use demo endpoint
+            showStatus();
+            try {
+                // Step 1: Preprocess (Demo)
+                updateStep(1, 'Generating Demo Data...');
+                const prepRes = await fetch(`${API_URL}/api/preprocess/demo`, { method: 'POST' });
+                if (!prepRes.ok) throw new Error('Demo generation failed');
+                const prepData = await prepRes.json();
 
-            const uploadBtn = document.getElementById('uploadBtn');
-            const loading = document.getElementById('uploadLoading');
-            
-            uploadBtn.disabled = true;
-            loading.classList.add('show');
+                renderSignalPreview(prepData.filtered_data.map(d => d[0]).slice(0, 500)); // Just 1 channel for preview
+                document.getElementById('channelCount').textContent = prepData.channels;
+                document.getElementById('durationStat').textContent = (prepData.samples / 128).toFixed(1) + 's';
 
-            const formData = new FormData();
-            formData.append('file', selectedFile);
-            
-            const patientId = document.getElementById('patientId').value;
-            const sessionName = document.getElementById('sessionName').value;
-            
-            if (patientId) formData.append('patient_id', patientId);
-            if (sessionName) formData.append('session_name', sessionName);
+                // Continue to Training
+                await runTrainingAndPrediction();
+
+            } catch (e) {
+                console.error(e);
+                alert('Error running demo: ' + e.message);
+                window.location.reload();
+            }
+        }
+
+        async function startAnalysis(file) {
+            showStatus();
 
             try {
-                const response = await fetch(`${API_URL}/upload-edf/`, {
+                // Step 1: Upload & Preprocess
+                updateStep(1, 'Uploading & Processing...', 'Filtering noise and computing derivatives');
+
+                const formData = new FormData();
+                formData.append('file', file);
+
+                const prepRes = await fetch(`${API_URL}/api/preprocess`, {
                     method: 'POST',
                     body: formData
                 });
 
-                const data = await response.json();
+                if (!prepRes.ok) throw new Error('Preprocessing failed');
+                const prepData = await prepRes.json();
 
-                if (response.ok) {
-                    showAlert('success', `✅ File uploaded successfully! Channels: ${data.metadata.channels}, Duration: ${data.metadata.duration.toFixed(1)}s`, 'uploadAlert');
-                    
-                    // Reset form
-                    selectedFile = null;
-                    document.getElementById('fileName').textContent = '';
-                    document.getElementById('fileInput').value = '';
-                    document.getElementById('patientId').value = '';
-                    document.getElementById('sessionName').value = '';
-                    uploadBtn.disabled = true;
-                } else {
-                    showAlert('error', '❌ Upload failed: ' + data.detail, 'uploadAlert');
-                    uploadBtn.disabled = false;
-                }
-            } catch (error) {
-                showAlert('error', '❌ Connection error. Make sure the API is running at ' + API_URL, 'uploadAlert');
-                uploadBtn.disabled = false;
-            } finally {
-                loading.classList.remove('show');
+                // Update Stats
+                document.getElementById('channelCount').textContent = prepData.channels;
+                document.getElementById('durationStat').textContent = (prepData.samples / 128).toFixed(1) + 's';
+                renderSignalPreview(prepData.filtered_data.map(d => d[0]).slice(0, 500));
+
+                // Continue
+                await runTrainingAndPrediction();
+
+            } catch (e) {
+                console.error(e);
+                alert('Analysis failed: ' + e.message);
+                window.location.reload(); // Simple reset
             }
         }
 
-        // Load files
-        async function loadFiles() {
-            const loading = document.getElementById('filesLoading');
-            const filesList = document.getElementById('filesList');
-            
-            loading.classList.add('show');
-            filesList.innerHTML = '';
-
+        async function runTrainingAndPrediction() {
             try {
-                const response = await fetch(`${API_URL}/files/`);
-                const data = await response.json();
+                // Step 2: Train SINDy
+                updateStep(2, 'Training Model...', 'Discovering governing equations (SINDy)');
+                const trainRes = await fetch(`${API_URL}/api/sindy/train`, { method: 'POST' });
+                if (!trainRes.ok) throw new Error('Training failed');
+                // We could show equations here if we wanted to be fancy
 
-                if (response.ok) {
-                    allFiles = data.files;
-                    displayFiles(allFiles);
-                    updateStats(allFiles);
-                } else {
-                    filesList.innerHTML = '<div class="alert alert-error show">Failed to load files</div>';
+                // Step 3: Predict
+                updateStep(3, 'Predicting Seizures...', 'Running temporal simulation and instability check');
+                const predRes = await fetch(`${API_URL}/api/predict`, { method: 'POST' });
+                if (!predRes.ok) throw new Error('Prediction failed');
+                const predData = await predRes.json();
+
+                // Show Results
+                showResults(predData);
+
+            } catch (e) {
+                console.error(e);
+                alert('Error in pipeline: ' + e.message);
+            }
+        }
+
+        function showStatus() {
+            uploadSection.style.display = 'none';
+            statusSection.style.display = 'block';
+            document.querySelector('header').style.display = 'none';
+        }
+
+        function updateStep(stepNum, title, detail) {
+            // Visual update of steps
+            for (let i = 1; i <= 3; i++) {
+                const el = document.getElementById(`step${i}`);
+                if (i === stepNum) el.classList.add('active');
+                else if (i < stepNum) el.classList.add('active'); // keep previous active
+                // else el.classList.remove('active');
+            }
+            statusText.textContent = title;
+            if (detail) statusDetail.textContent = detail;
+        }
+
+        function showResults(data) {
+            statusSection.style.display = 'none';
+            resultsSection.style.display = 'grid';
+
+            // Risk Badge
+            const badge = document.getElementById('riskBadge');
+            const timeDisplay = document.getElementById('timeToSeizure');
+
+            if (data.lead_time_minutes) {
+                badge.className = 'risk-badge risk-high';
+                badge.textContent = '⚠️ SEIZURE RISK DETECTED';
+                timeDisplay.textContent = `${data.lead_time_minutes.toFixed(1)} min`;
+            } else {
+                badge.className = 'risk-badge risk-low';
+                badge.textContent = '✅ STABLE BRAIN DYNAMICS';
+                timeDisplay.textContent = 'Safe';
+                timeDisplay.style.color = 'var(--success)';
+            }
+
+            // Render Chart
+            renderInstabilityChart(data.instability_scores);
+        }
+
+        function renderSignalPreview(dataPoints) {
+            const ctx = document.getElementById('signalChart').getContext('2d');
+            signalChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: dataPoints.map((_, i) => i),
+                    datasets: [{
+                        label: 'EEG Signal (Filtered)',
+                        data: dataPoints,
+                        borderColor: '#aadafa',
+                        borderWidth: 1,
+                        pointRadius: 0,
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { display: false },
+                        y: { display: false }
+                    }
                 }
-            } catch (error) {
-                filesList.innerHTML = '<div class="alert alert-error show">Connection error. Make sure the API is running.</div>';
-            } finally {
-                loading.classList.remove('show');
-            }
+            });
         }
 
-        // Display files
-        function displayFiles(files) {
-            const filesList = document.getElementById('filesList');
-            
-            if (files.length === 0) {
-                filesList.innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-state-icon">📂</div>
-                        <h3>No files uploaded yet</h3>
-                        <p>Upload your first EDF file to get started!</p>
-                    </div>
-                `;
-                return;
-            }
+        function renderInstabilityChart(scores) {
+            const ctx = document.getElementById('instabilityChart').getContext('2d');
 
-            filesList.innerHTML = files.map(file => `
-                <div class="file-card">
-                    <div class="file-header">
-                        <div>
-                            <div class="file-title">📄 ${file.filename}</div>
-                            <p style="color: #666; margin-top: 0.25rem;">
-                                Patient: ${file.patient_id || 'N/A'} | 
-                                Session: ${file.session_name || 'N/A'}
-                            </p>
-                        </div>
-                        <button class="btn btn-danger" onclick="deleteFile(${file.id})">🗑️ Delete</button>
-                    </div>
-                    <div class="file-meta">
-                        <div class="meta-item">
-                            <div class="meta-label">Channels</div>
-                            <div class="meta-value">${file.n_channels || 'N/A'}</div>
-                        </div>
-                        <div class="meta-item">
-                            <div class="meta-label">Duration</div>
-                            <div class="meta-value">${file.duration_seconds ? file.duration_seconds.toFixed(1) + 's' : 'N/A'}</div>
-                        </div>
-                        <div class="meta-item">
-                            <div class="meta-label">Sampling Rate</div>
-                            <div class="meta-value">${file.sampling_rate ? file.sampling_rate.toFixed(0) + ' Hz' : 'N/A'}</div>
-                        </div>
-                        <div class="meta-item">
-                            <div class="meta-label">File Size</div>
-                            <div class="meta-value">${(file.file_size / 1024).toFixed(1)} KB</div>
-                        </div>
-                    </div>
-                </div>
-            `).join('');
-        }
+            const labels = scores.map(s => s.window);
+            const values = scores.map(s => s.error);
+            const threshold = scores[0].threshold; // assumed constant
 
-        // Filter files
-        function filterFiles() {
-            const filterValue = document.getElementById('filterInput').value.toLowerCase();
-            const filtered = allFiles.filter(file => 
-                (file.patient_id || '').toLowerCase().includes(filterValue)
-            );
-            displayFiles(filtered);
-        }
-
-        // Update statistics
-        function updateStats(files) {
-            if (files.length === 0) {
-                document.getElementById('statsGrid').style.display = 'none';
-                return;
-            }
-
-            document.getElementById('statsGrid').style.display = 'grid';
-            
-            const totalDuration = files.reduce((sum, f) => sum + (f.duration_seconds || 0), 0);
-            const totalSize = files.reduce((sum, f) => sum + (f.file_size || 0), 0);
-
-            document.getElementById('totalFiles').textContent = files.length;
-            document.getElementById('totalDuration').textContent = (totalDuration / 3600).toFixed(1) + 'h';
-            document.getElementById('totalSize').textContent = (totalSize / (1024 * 1024)).toFixed(1) + 'MB';
-        }
-
-        // Delete file
-        async function deleteFile(fileId) {
-            if (!confirm('Are you sure you want to delete this file?')) return;
-
-            try {
-                const response = await fetch(`${API_URL}/files/${fileId}`, {
-                    method: 'DELETE'
-                });
-
-                if (response.ok) {
-                    loadFiles();
-                } else {
-                    alert('Failed to delete file');
+            instabilityChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Instability (MSE)',
+                            data: values,
+                            borderColor: '#f472b6',
+                            backgroundColor: 'rgba(244, 114, 182, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Threshold',
+                            data: Array(values.length).fill(threshold),
+                            borderColor: '#34d399',
+                            borderDash: [5, 5],
+                            pointRadius: 0
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    interaction: {
+                        intersect: false,
+                        mode: 'index',
+                    },
+                    plugins: {
+                        legend: { labels: { color: '#94a3b8' } }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            ticks: { color: '#94a3b8' },
+                            title: { display: true, text: 'Time Windows (10s)', color: '#64748b' }
+                        },
+                        y: {
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            ticks: { color: '#94a3b8' }
+                        }
+                    }
                 }
-            } catch (error) {
-                alert('Connection error');
-            }
+            });
         }
-
-        // Show alert
-        function showAlert(type, message, elementId) {
-            const alert = document.getElementById(elementId);
-            alert.className = `alert alert-${type} show`;
-            alert.textContent = message;
-            
-            setTimeout(() => {
-                alert.classList.remove('show');
-            }, 30000);
-        }
-
-        // Load files on page load
-        window.addEventListener('load', () => {
-            loadFiles();
-        });
     </script>
 </body>
+
 </html>

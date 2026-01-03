@@ -259,6 +259,8 @@ async def train_sindy():
         
         # Flatten windows for training
         X_train = X_windows.reshape(-1, X_windows.shape[2])
+        dX_windows = app_state["preprocessed_data"]["dX"]
+        dX_train = dX_windows.reshape(-1, dX_windows.shape[2])
         
         # Train SINDy model
         model = ps.SINDy(
@@ -266,11 +268,12 @@ async def train_sindy():
             feature_library=ps.PolynomialLibrary(degree=3)
         )
         
-        model.fit(X_train, t=1/128)
+        model.fit(X_train, x_dot=dX_train, t=1/128)
         
         # Store model
         app_state["sindy_model"] = model
         app_state["X_train"] = X_train
+        app_state["dX_train"] = dX_train
         
         # Extract equations
         feature_names = [f"x{i+1}" for i in range(X_train.shape[1])]
@@ -310,6 +313,8 @@ async def train_sindy():
         )
     
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"SINDy training failed: {str(e)}")
 
 @app.post("/api/predict", response_model=PredictionResponse)
