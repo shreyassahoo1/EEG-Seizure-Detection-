@@ -362,7 +362,6 @@
     <div class="container">
         <header>
             <div class="logo">🧠 SINDy AI</div>
-            <button class="btn btn-outline" id="demoBtn" onclick="runDemo()">Try Demo</button>
         </header>
 
         <!-- Step 1: Upload Hero -->
@@ -435,7 +434,6 @@
                 <h3 style="margin-bottom: 1rem;">Model Details</h3>
                 <ul style="list-style: none; color: var(--text-muted); line-height: 2;">
                     <li><strong>Model:</strong> Polynomial SINDy (deg=3)</li>
-                    <li><strong>Algorithm:</strong> STLSQ (thresh=0.006)</li>
                     <li><strong>Window Size:</strong> 10 seconds</li>
                     <li><strong>Channels:</strong> <span id="channelCount">--</span></li>
                 </ul>
@@ -445,11 +443,6 @@
                 <h3 style="margin-bottom: 1rem;">File Stats</h3>
                 <div class="metric-value" style="font-size: 2rem;" id="durationStat">--</div>
                 <div class="metric-label">Recording Duration</div>
-            </div>
-
-            <div class="glass-card" style="grid-column: 1 / -1;">
-                <h3 style="margin-bottom: 1rem;">Live Signal Preview (First 5s)</h3>
-                <canvas id="signalChart" height="80"></canvas>
             </div>
 
             <div style="grid-column: 1/-1; text-align: center; margin-top: 2rem;">
@@ -470,7 +463,7 @@
 
         // Charts
         let instabilityChart = null;
-        let signalChart = null;
+
 
         async function handleFileSelect(event) {
             const file = event.target.files[0];
@@ -481,29 +474,7 @@
             }
         }
 
-        async function runDemo() {
-            // Demo mode: Bypass file upload, use demo endpoint
-            showStatus();
-            try {
-                // Step 1: Preprocess (Demo)
-                updateStep(1, 'Generating Demo Data...');
-                const prepRes = await fetch(`${API_URL}/api/preprocess/demo`, { method: 'POST' });
-                if (!prepRes.ok) throw new Error('Demo generation failed');
-                const prepData = await prepRes.json();
 
-                renderSignalPreview(prepData.filtered_data.map(d => d[0]).slice(0, 500)); // Just 1 channel for preview
-                document.getElementById('channelCount').textContent = prepData.channels;
-                document.getElementById('durationStat').textContent = (prepData.samples / 128).toFixed(1) + 's';
-
-                // Continue to Training
-                await runTrainingAndPrediction();
-
-            } catch (e) {
-                console.error(e);
-                alert('Error running demo: ' + e.message);
-                window.location.reload();
-            }
-        }
 
         async function startAnalysis(file) {
             showStatus();
@@ -526,7 +497,6 @@
                 // Update Stats
                 document.getElementById('channelCount').textContent = prepData.channels;
                 document.getElementById('durationStat').textContent = (prepData.samples / 128).toFixed(1) + 's';
-                renderSignalPreview(prepData.filtered_data.map(d => d[0]).slice(0, 500));
 
                 // Continue
                 await runTrainingAndPrediction();
@@ -544,7 +514,10 @@
                 updateStep(2, 'Training Model...', 'Discovering governing equations (SINDy)');
                 const trainRes = await fetch(`${API_URL}/api/sindy/train`, { method: 'POST' });
                 if (!trainRes.ok) throw new Error('Training failed');
-                // We could show equations here if we wanted to be fancy
+
+                // Parse response (optional now since we hid the equation)
+                const trainData = await trainRes.json();
+                console.log("Discovered Equations:", trainData.equations);
 
                 // Step 3: Predict
                 updateStep(3, 'Predicting Seizures...', 'Running temporal simulation and instability check');
@@ -599,41 +572,76 @@
             }
 
             // Render Chart
-            renderInstabilityChart(data.instability_scores);
+            renderInstabilityChart(data.instability_scores, data.seizure_window, data.alert_window, !data.lead_time_minutes);
         }
 
-        function renderSignalPreview(dataPoints) {
-            const ctx = document.getElementById('signalChart').getContext('2d');
-            signalChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: dataPoints.map((_, i) => i),
-                    datasets: [{
-                        label: 'EEG Signal (Filtered)',
-                        data: dataPoints,
-                        borderColor: '#aadafa',
-                        borderWidth: 1,
-                        pointRadius: 0,
-                        tension: 0.3
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        x: { display: false },
-                        y: { display: false }
-                    }
-                }
-            });
-        }
 
-        function renderInstabilityChart(scores) {
+
+        function renderInstabilityChart(scores, seizureIndex = null, alertIndex = null, isSafe = false) {
             const ctx = document.getElementById('instabilityChart').getContext('2d');
 
             const labels = scores.map(s => s.window);
             const values = scores.map(s => s.error);
             const threshold = scores[0].threshold; // assumed constant
+
+            // Plugin to draw vertical line at predicted seizure
+            const seizureLinePlugin = {
+                id: 'seizureLine',
+                afterDraw: (chart) => {
+                    // If patient is safe, do not draw markers
+                    if (isSafe) return;
+
+                    if (seizureIndex === null || seizureIndex === undefined) return;
+
+                    // Check if seizureIndex is within our data range
+                    if (seizureIndex >= values.length) return;
+
+                    const ctx = chart.ctx;
+                    const xAxis = chart.scales.x;
+                    const yAxis = chart.scales.y;
+
+                    // Get x position for the seizureIndex (index matches the label index)
+                    const x = xAxis.getPixelForValue(seizureIndex);
+
+                    const top = yAxis.top;
+                    const bottom = yAxis.bottom;
+
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.moveTo(x, top);
+                    ctx.lineTo(x, bottom);
+                    ctx.lineWidth = 2;
+                    ctx.strokeStyle = '#ef4444'; // var(--danger)
+                    ctx.setLineDash([6, 4]); // Dashed line
+                    ctx.stroke();
+
+                    // Add label
+                    ctx.fillStyle = '#ef4444';
+                    ctx.font = 'bold 12px Outfit';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('⚡ PREDICTED SEIZURE', x, top + 20); // Draw inside top area
+
+                    // --- Draw Alert/Lead Time Line ---
+                    if (alertIndex !== null && alertIndex !== undefined && alertIndex < values.length) {
+                        const xAlert = xAxis.getPixelForValue(alertIndex);
+
+                        ctx.beginPath();
+                        ctx.moveTo(xAlert, top);
+                        ctx.lineTo(xAlert, bottom);
+                        ctx.lineWidth = 2;
+                        ctx.strokeStyle = '#f59e0b'; // var(--warning)
+                        ctx.setLineDash([5, 5]);
+                        ctx.stroke();
+
+                        // Add label
+                        ctx.fillStyle = '#f59e0b';
+                        ctx.textAlign = 'center';
+                        ctx.fillText('⚠️ RISK DETECTED', xAlert, top + 40); // Slightly lower than seizure label
+                    }
+
+                    ctx.restore();
+                }
+            };
 
             instabilityChart = new Chart(ctx, {
                 type: 'line',
@@ -664,7 +672,8 @@
                         mode: 'index',
                     },
                     plugins: {
-                        legend: { labels: { color: '#94a3b8' } }
+                        legend: { labels: { color: '#94a3b8' } },
+                        tooltip: { enabled: false }
                     },
                     scales: {
                         x: {
@@ -677,7 +686,8 @@
                             ticks: { color: '#94a3b8' }
                         }
                     }
-                }
+                },
+                plugins: [seizureLinePlugin]
             });
         }
     </script>
