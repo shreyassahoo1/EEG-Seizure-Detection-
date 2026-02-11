@@ -1,5 +1,12 @@
 # 🧠 EEG Seizure Detection Using SINDy & Machine Learning
 
+![Python](https://img.shields.io/badge/Python-3.8+-blue)
+![Machine Learning](https://img.shields.io/badge/Machine%20Learning-SINDy-orange)
+![Domain](https://img.shields.io/badge/Domain-EEG%20Signal%20Processing-purple)
+![NLP/ML](https://img.shields.io/badge/Model-Sparse%20Identification-red)
+![Status](https://img.shields.io/badge/Status-Research%20Project-green)
+![License](https://img.shields.io/badge/License-Academic-lightgrey)
+
 ---
 
 ## 📌 Overview
